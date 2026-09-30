@@ -5,8 +5,8 @@ Right-click an image and upscale it 2x, 4x, 8x or 16x on your own machine
 Windows · macOS
 
 <!-- media: hero -->
-<!-- ![img-upscale](docs/hero.png) -->
-<!-- media: hero -->
+![Before and after a 2x upscale: the same eye, blurry at 480px and sharp at 960px](docs/before-after.png)
+<!-- /media: hero -->
 
 ## What it is
 
