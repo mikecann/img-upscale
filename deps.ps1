@@ -1,8 +1,21 @@
-# img-upscale/deps.ps1
+# deps.ps1
 # Sets up the quality backend (Swin2SR via transformers) and checks the optional
 # fast backend (Real-ESRGAN ncnn Vulkan).
 
+$Python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
+if (-not (Test-Path $Python)) { $Python = 'python' }
+if (-not (Get-Command $Python -ErrorAction SilentlyContinue)) {
+    throw "Python 3 is required. Install it, add it to PATH and rerun deps.ps1."
+}
 Write-Host "  [img-upscale] Checking dependencies..." -ForegroundColor Cyan
+
+function Get-PythonImportOutput([string]$Code) {
+    # Windows PowerShell can treat a failed import's stderr as a terminating
+    # error when the installer uses Stop. A missing module is a normal probe.
+    $ErrorActionPreference = 'Continue'
+    $result = & $Python -c $Code 2>$null
+    if ($LASTEXITCODE -eq 0) { return $result }
+}
 
 $requiredPythonPkgs = @(
     @{ module = "numpy"; package = "numpy" }
@@ -14,7 +27,7 @@ $requiredPythonPkgs = @(
 
 $missingPackages = @()
 foreach ($pkg in $requiredPythonPkgs) {
-    $installed = python -c "import $($pkg.module); print('ok')" 2>$null
+    $installed = Get-PythonImportOutput "import $($pkg.module); print('ok')"
     if ($installed -eq "ok") {
         Write-Host "    OK  $($pkg.package)" -ForegroundColor Green
         continue
@@ -23,20 +36,21 @@ foreach ($pkg in $requiredPythonPkgs) {
     $missingPackages += $pkg.package
 }
 
-$torchInstalled = python -c "import torch; print(torch.__version__)" 2>$null
+$torchInstalled = Get-PythonImportOutput "import torch; print(torch.__version__)"
 if (-not $torchInstalled) {
     Write-Host "    WARNING  torch is not installed" -ForegroundColor Yellow
     Write-Host "    The quality backend needs a working PyTorch install." -ForegroundColor Yellow
-    Write-Host "    Install a CUDA-enabled PyTorch build, then rerun deps.ps1." -ForegroundColor Yellow
+    Write-Host "    Run $Python -m pip install torch for CPU support, or install a CUDA build" -ForegroundColor Yellow
+    Write-Host "    using https://pytorch.org/get-started/locally/, then rerun deps.ps1." -ForegroundColor Yellow
 } else {
     Write-Host "    OK  torch $torchInstalled" -ForegroundColor Green
 }
 
 if ($missingPackages.Count -gt 0) {
     Write-Host "    Installing Python packages for the quality backend..." -ForegroundColor Yellow
-    pip install $missingPackages
+    & $Python -m pip install $missingPackages
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "    ERROR  failed to install one or more Python packages" -ForegroundColor Red
+        throw "Failed to install one or more Python packages."
     } else {
         Write-Host "    OK  quality backend packages installed" -ForegroundColor Green
     }

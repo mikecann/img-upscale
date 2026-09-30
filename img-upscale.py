@@ -187,9 +187,14 @@ def print_missing_quality_dependency_help() -> None:
     print("Error: quality backend dependencies are missing.")
     print()
     print("Run:")
-    print("  powershell -ExecutionPolicy Bypass -File tools\\img-upscale\\deps.ps1")
+    if sys.platform == "win32":
+        print('  powershell -ExecutionPolicy Bypass -File "deps.ps1"')
+        print("  Or: python -m pip install -r requirements.txt")
+    else:
+        print("  python3 -m pip install -r requirements.txt")
+    print("  See README.md for PyTorch setup and virtual environments.")
     print()
-    print("This installs the Python packages for the Swin2SR quality backend.")
+    print("Run this from your img-upscale clone to install the quality backend packages.")
 
 
 def get_resampling_lanczos():

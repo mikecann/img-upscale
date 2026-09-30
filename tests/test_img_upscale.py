@@ -1,11 +1,13 @@
+import contextlib
 import importlib.util
+import io
 import pathlib
 import tempfile
 import unittest
 
 
-TOOLS_DIR = pathlib.Path(__file__).resolve().parents[1]
-MODULE_PATH = TOOLS_DIR / "img-upscale.py"
+REPO_DIR = pathlib.Path(__file__).resolve().parents[1]
+MODULE_PATH = REPO_DIR / "img-upscale.py"
 
 
 def load_module():
@@ -175,17 +177,25 @@ class ImgUpscaleTests(unittest.TestCase):
         self.assertEqual([0, 192, 384, 576, 744], self.module.build_tile_starts(length=1000, tile_size=256, tile_overlap=32))
 
     def test_build_fast_command_uses_expected_binary_and_model(self):
+        exe_dir = pathlib.Path("external-binaries")
         command = self.module.build_fast_upscale_command(
-            exe_dir=pathlib.Path(r"C:\dev\tools"),
+            exe_dir=exe_dir,
             input_path=pathlib.Path("input.png"),
             output_path=pathlib.Path("output.png"),
             scale=4,
         )
 
-        self.assertEqual(pathlib.Path(r"C:\dev\tools\realesrgan-ncnn-vulkan.exe"), command[0])
+        self.assertEqual(exe_dir / self.module.FAST_UPSCALE_BINARY, command[0])
         self.assertIn("-n", command)
         self.assertIn("realesrgan-x4plus", command)
         self.assertEqual("4", command[-1])
+
+    def test_dependency_help_uses_standalone_setup(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.module.print_missing_quality_dependency_help()
+        self.assertNotIn("tools\\img-upscale", output.getvalue())
+        self.assertIn("requirements.txt", output.getvalue())
 
 
 if __name__ == "__main__":

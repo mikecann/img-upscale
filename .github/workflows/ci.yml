@@ -1,0 +1,42 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  python:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies (no models)
+        run: python -m pip install torch numpy Pillow
+      - name: Python tests
+        run: python -m unittest discover -s tests -v
+      - name: Python syntax
+        run: python -m compileall -q img-upscale.py tests
+      - name: Installer helper tests
+        shell: pwsh
+        run: ./tests/test_installers.ps1
+      - name: Shell syntax and launcher
+        if: runner.os == 'macOS'
+        run: |
+          bash -n install.sh img-upscale
+          bash img-upscale --help
+      - name: Parse every PowerShell script
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem -Recurse -Filter *.ps1 | ForEach-Object {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | ForEach-Object { Write-Error $_ -ErrorAction Continue }
+              $failed = $true
+            }
+          }
+          if ($failed) { exit 1 }
